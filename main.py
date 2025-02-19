@@ -1,7 +1,9 @@
+from re import search
 from tkinter import *  # Import all classes and functions from Tkinter for GUI
 from tkinter import messagebox  # Import messagebox for displaying alert dialogs
 import random  # Import random module for generating passwords
 import pyperclip  # Import pyperclip to copy text to the clipboard
+import json
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 # Function to generate a random password
@@ -39,27 +41,63 @@ def generate_password():
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 # Function to save the password to a file
 def save():
-    site = website_entry.get()  # Get website input
+    site = website_entry.get().title()  # Get website input
     email = email_entry.get()  # Get email input
     password = password_entry.get()  # Get password input
 
+
+    new_data = {
+        site: {
+            "email": email,
+            "password": password
+        }
+    }
     # Check if any field is empty
     if len(site) == 0 or len(email) == 0 or len(password) == 0:
         messagebox.showinfo(message="Please do not leave any fields empty!")  # Show warning message
     else:
-        # Confirmation dialog before saving
-        isOK = messagebox.askokcancel(title=site, message=f"These are the details entered: {email} \nPassword: {password}. \nOK to save?")
-        if isOK:
-            with open("password_manager.txt", "a") as f:  # Open file in append mode
-                f.write(f"{site} | {email} | {password}\n")  # Write details to file
-                website_entry.delete(0, END)  # Clear website entry field
-                email_entry.delete(0, END)  # Clear email entry field
-                password_entry.delete(0, END)  # Clear password entry field
+        try:
+            with open("password_manager.json", "r") as data_file:
+                data = json.load(data_file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            with open("password_manager.json", "w") as data_file:
+                json.dump(new_data, data_file, indent=4)
+        else:
+            data.update(new_data)
+
+            with open("password_manager.json", "w") as data_file:
+                json.dump(data, data_file, indent=4)
+        finally:
+            website_entry.delete(0, END)  # Clear website entry field
+            email_entry.delete(0, END)  # Clear email entry field
+            password_entry.delete(0, END)  # Clear password entry field
+
+
+# ---------------------------- SEARCH INFO ------------------------------- #
+def search_info():
+    site = website_entry.get().title()  # Get website input
+
+    try:
+        with open("password_manager.json", "r") as data_file:
+            data = json.load(data_file)
+
+    except FileNotFoundError:
+        messagebox.showinfo(title="Error", message="No data file found!")
+    else:
+        if site in data:
+            email = data[site]["email"]
+            password = data[site]["password"]
+            messagebox.showinfo(title=site, message=f"Email: {email}\nPassword: {password}")
+        else:
+            messagebox.showinfo(title="Error", message=f"You have not saved information for {site}!")
+
+
+
 
 # ---------------------------- UI SETUP ------------------------------- #
 window = Tk()  # Create main window
 window.title("Password Manager")  # Set window title
-window.config(padx=20, pady=20)  # Add padding to the window
+window.config(padx=50, pady=50)  # Add padding to the window
 
 canvas = Canvas(height=200, width=200)  # Create canvas for displaying an image
 logo = PhotoImage(file="logo.png")  # Load image file
@@ -78,7 +116,7 @@ password_txt.grid(row=3, column=0)  # Position label in grid
 
 # Entry fields
 website_entry = Entry(width=35)  # Create entry field for website
-website_entry.grid(row=1, column=1, columnspan=2)  # Position entry field
+website_entry.grid(row=1, column=1)  # Position entry field
 website_entry.focus()  # Set focus to website entry field
 
 email_entry = Entry(width=35)  # Create entry field for email
@@ -93,5 +131,8 @@ generate_button.grid(row=3, column=2)  # Position button
 
 add_button = Button(text="Add", width=36, command=save)  # Create button to save data
 add_button.grid(row=4, column=1, columnspan=2)  # Position button
+
+search_button = Button(text="Search", width=13, command=search_info)
+search_button.grid(row=1, column=2)
 
 window.mainloop()  # Run the main event loop
